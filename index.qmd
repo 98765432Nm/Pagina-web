@@ -1,56 +1,102 @@
 ---
-title: "Mi pagina web"
-format: html
+# title: "Manuscript Analysis"
+format:
+  html:
+    toc: true
+    toc-expand: true
+    toc-depth: 4
+    toc-location: left
+    number-sections: true
+    self-contained: true
+    code-fold: false
+editor_options: 
+  chunk_output_type: console
+execute: 
+  warning: false
+  message: false
+  echo: true
 ---
 
-## Mi página web en GitHub
+# Análisis de diseño experimental
 
-[Haz clic aquí para visitar mi página web](https://98765432nm.github.io/Pagina-web/)
+## Base de datos
 
+>https://docs.google.com/spreadsheets/d/1RzSRtKS2CV_Zf0rA3Ynb83axrVmXeRN4NjMhHWmHECM/edit?gid=0#gid=0
 
-## Quarto
+## Indentificar los factores 
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+1. Factor 1: boro
+1. Factor 2: potasio
 
-## Running Code
+## Identificar el modelo
 
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+Factorial en DBCA
+
+$$Y = \mu + bloque + B + P + B*P + \xi$$
+
+# Project steup
 
 ```{r}
-1 + 1
+#| label: setup
+
+source('https://inkaverse.com/setup.r')
 ```
 
-You can add options to executable code like this 
+# Activar los paquetes
 
 ```{r}
-#| echo: false
-2 * 2
+gs <- "https://docs.google.com/spreadsheets/d/1RzSRtKS2CV_Zf0rA3Ynb83axrVmXeRN4NjMhHWmHECM/edit?gid=0#gid=0" %>%
+  as_sheets_id()
+
+fb <- gs %>%
+  range_read(ss = ., sheet = "fb",
+             col_types = "ccccddddd") %>%
+  mutate(across(c(1:4), ~ as.factor(.)))
+
+fb %>% str()
+summary(fb$peso_fruto)
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+# Análisis de variancia
 
-# Modelos lineales mixtos
+```{r}
+# aov() ó lm()
 
-Los MLM permiten tener estructuras complejas.
+fb_factorial <- fb %>%
+  filter(tratamiento != "T0") %>%
+  droplevels()
 
+md <- aov(ancho_fruto ~ bloque + boro + potasio +
+            boro * potasio, fb_factorial)
 
-$$
-y = \mu + Tratamientos + error
-$$
+anova(md)
+```
 
+# Comparación de medias
 
+```{r}
+mc <- emmeans(md, ~ boro * potasio)
 
+# Letras de significancia
+tab <- cld(mc,
+           adjust = "tukey",
+           Letters = letters,
+           decreasing = TRUE)
 
+tab
+```
 
+# Representación gráfica
 
+```{r}
+pl <- plot_smr(data = tab
+               , x = "boro"
+               , y = "emmean"
+               , group = "potasio"
+               , error = "SE"
+               , sig = ".group"
+               , ylab = "Ancho del fruto (cm)"
+               )
 
-
-
-
-
-
-
-
-
-
-
+pl
+```
